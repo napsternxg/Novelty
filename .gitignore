@@ -1,0 +1,11 @@
+*.txt
+*.tsv
+part-*
+_*
+*.log
+out/**
+old/**
+tmp/**
+*.pyc
+*.pyo
+data/**
