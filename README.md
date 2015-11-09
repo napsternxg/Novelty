@@ -12,5 +12,7 @@ To run the code using spark do the following:
 
 # Load data into DB
 ```
-mysql --local-infile=1 -u smishra8 -p novelty -h sofus -e "" > out/PMID_PER_YEAR.tsv
+db/load_data.sh <FOLDER_NAME> <tbl_name>
+# Example
+db/load_data.sh out/pmid_novelty_all_scores_mesh_c novelty_scores
 ```
