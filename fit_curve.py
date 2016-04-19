@@ -136,28 +136,29 @@ def plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure=False, filename="None", ax = None, 
         plt.show()
 
 # Fit function
-def func(x, b, c, d):
-    return (b/(1.0+np.exp(-(c+d*x))))
+def func(x, b, q, p): 
+  return (b/(1.0+np.exp(-(x-q)/p)))
 
 # First derivative
 def f_der1(x, popt):
-    b,c,d = popt[:]
-    #e = 2+ np.exp(-(c+d*x)) + np.exp(c+d*x)
-    e = np.exp(-(c + d*x)) / np.power((1 + np.exp(-(c+d*x))), 2)
-    #return b*d/e
-    return b*d*e
+  b,q,p = popt[:]
+  c = -q/p
+  d = 1./p
+  e = np.exp(-(x-q)/p) / np.power((1 + np.exp(-(x-q)/p)), 2)
+  return b*e/p
 
 # Second derivative
 def f_der2(x, popt):
-    b,c,d = popt[:]
-    #t1 = b*d/np.power((2+ np.exp(-(c+d*x)) + np.exp(c+d*x)),2)
-    #t2 = (d*np.exp(-(c+d*x)) - d*np.exp(c+d*x))
-    t1 = b*d*d/np.power((1 + np.exp(-(c+d*x))), 3)
-    t2 = np.exp(-(c+d*x)) * (np.exp(-(c+d*x)) - 1)
-    return t1*t2
+  b,q,p = popt[:]
+  c = -q/p
+  d = 1./p
+  t1 = (b/p**2)/np.power((1 + np.exp(-(x-q)/p)), 3)
+  t2 = np.exp(-(x-q)/p) * (np.exp(-(x-q)/p) - 1)
+  return t1*t2
+
 # Fit the curve for the data
 def getFitCurve(x1,y):
-  return optimize.curve_fit(func,x1,y, p0=[0.5, 0.5, 0.5])
+  return optimize.curve_fit(func,x1,y, p0=[1,-1,1])
 
 def genFitData2(filename, mesh_term, normalized=False):
   pmid_per_year = pd.read_csv("PMID_PER_YEAR.tsv", sep="\t", index_col="year", dtype = {'Year':int, 'TotalPMID':float})
