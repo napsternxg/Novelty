@@ -6,9 +6,9 @@ CREATE TABLE `mesh_scores` (
   `AbsVal` int(11) NOT NULL,
   `TFirstP` int(11) NOT NULL,
   `VolFirstP` float NOT NULL,
-  `PredVal` float NOT NULL,
-  `Velocity` float NOT NULL,
-  `Acceleration` float NOT NULL
+  `PredVal` float,
+  `Velocity` float,
+  `Acceleration` float
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 DROP TABLE IF EXISTS `meshpair_scores`;

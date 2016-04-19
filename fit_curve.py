@@ -4,12 +4,9 @@ import os
 
 import numpy as np
 from scipy import interpolate, optimize
-
 import pandas as pd
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
+import connectDB as cdb
 
 """
 Year wise cumulative count of
@@ -26,7 +23,7 @@ def normalizeAndLogCount(k):
     #print "Final k: ", k
     return k
 
-def prepareData(df,normalized):
+def prepareData(df,normalized, offset=2):
     global tyd
     df[["x","y"]] =df[["x","y"]].astype(float)
     df["y_org"] = df["y"]
@@ -41,37 +38,58 @@ def prepareData(df,normalized):
 
     #print df
 
-    min_year = df.x.min() - 5
-    max_year = df.x.max() -1
-    x = range(min_year,max_year)
-    x1 = range(0,max_year-min_year)
+    #min_year = df.x.min() - 5
+    #max_year = df.x.max() -1
+    min_year = df.x.min() - offset
+    max_year = min(df.x.max() + 1, 2015)
+    x_t = range(min_year,max_year)
+    x = [] # Added to not set unobserved years to 0
+    #x1 = range(0,max_year-min_year)
+    x1 = []
     y = []
     y_org = []
-    for i in x:
+    for i in x_t:
         if i not in df.x.values:
+            if i >= df.x.min():
+              continue
             y.append(0)
             y_org.append(0)
+            x.append(i)
+            x1.append(i-min_year)
+            continue
         else:
+            x.append(i)
+            x1.append(i-min_year)
             y.append(df[df.x == i].y.values[0])
             y_org.append(df[df.x == i].y_org.values[0])
 
     #y = [0 if i not in df.x else df[df.x == i].y for i in x]
     #print df.y
-    #print x,x1,y
+    print x,x1,y
     return x,x1,y, y_org
 
-def getData(filename, normalized):
+def getData(filename=None, mesh_term=None, normalized=True):
+    if filename is None and mesh_term is None:
+      raise Exception, "Provide atleast filename or MeSH term"
     global tyd
     column_names = ["x","y"]
-    # Important step. TotalPMID should be of type float or else there will be error in normalized calculations
-    df = pd.read_csv(filename,sep="\t", dtype = {'Year':int, 'TotalPMID':float})
+    print "MeSHterm = %s" % mesh_term
+    if mesh_term is not None:
+      print "Fetching data form MeSH Term = %s from DB" % mesh_term
+      query = "SELECT Year,AbsVal FROM mesh_scores WHERE MeshTerm = :mterm"
+      r = cdb.session.execute(query, {"mterm": mesh_term})
+      df = pd.DataFrame(r.fetchall())
+      print df
+    elif filename is not None:
+      # Important step. TotalPMID should be of type float or else there will be error in normalized calculations
+      df = pd.read_csv(filename,sep="\t", dtype = {'Year':int, 'TotalPMID':float})
     df.columns = column_names
-    return prepareData(df, normalized)
+    #return prepareData(df, normalized)
+    return df
 
 
-def plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure=False, filename="None", ax = None, color=sns.xkcd_rgb["black"],marker='o', linestyle='-',label='',alpha=1.0,normalized=True,**kwargs):
+def plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure=False, filename="None", ax = None, color="k",marker='o', linestyle='-',label='',alpha=1.0,normalized=True,**kwargs):
     #print x,y,x2,r,y2,y3,y4
-    sns.set_style("whitegrid")
     title  = "Curve fitting for MeshTerm"
     ax_defined = True
     if normalized:
@@ -85,6 +103,9 @@ def plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure=False, filename="None", ax = None, 
       label = 'Data'
     ax[0].plot(x,y_org,marker=marker,markersize=7,linestyle='None',\
         color=color, alpha=alpha,label=label,**kwargs)
+    tyd_t = tyd.set_index("year")
+    ax[0].plot(x,tyd_t.ix[x, "TotalPMID"].values,marker=">",markersize=7,linestyle=linestyle,\
+        color="k", alpha=alpha,label="overall",**kwargs)
     #ax[0].plot(x,r,"-")
     ax[0].set_yscale('log')
     ax[0].set_ylabel("Original Counts")
@@ -101,13 +122,15 @@ def plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure=False, filename="None", ax = None, 
     ax[3].plot(x2,y4,linestyle=linestyle,color=color,alpha=alpha,label=label, **kwargs)
     ax[3].set_ylabel("Acceleration")
     ax[3].set_xlabel("Year")
-    
+    df_t  = pd.DataFrame({"year": x2, "pred_val": y2, "Growth": y3, "Acceleration": y4})
+    print df_t.describe()
     if saveFigure and (not ax_defined):
-        ax[1].legend(loc="upper left")
-        #filename = filename + ".png"
+        ax[0].legend(loc="lower right")
+        ax[1].legend(loc="lower right")
         ax[0].set_title(title)
-        plt.savefig(filename+ ".png", bbox_inches = "tight")
-        plt.savefig(filename+ ".eps", bbox_inches = "tight")
+        plt.savefig(filename+ ".pdf", bbox_inches = "tight")
+        #plt.savefig(filename+ ".png", bbox_inches = "tight")
+        #plt.savefig(filename+ ".eps", bbox_inches = "tight")
         print "Figure saved as: %s" % filename
     elif not ax_defined:
         plt.show()
@@ -119,21 +142,74 @@ def func(x, b, c, d):
 # First derivative
 def f_der1(x, popt):
     b,c,d = popt[:]
-    e = 2+ np.exp(-(c+d*x)) + np.exp(c+d*x)
-    return b*d/e
+    #e = 2+ np.exp(-(c+d*x)) + np.exp(c+d*x)
+    e = np.exp(-(c + d*x)) / np.power((1 + np.exp(-(c+d*x))), 2)
+    #return b*d/e
+    return b*d*e
 
 # Second derivative
 def f_der2(x, popt):
     b,c,d = popt[:]
-    t1 = b*d/np.power((2+ np.exp(-(c+d*x)) + np.exp(c+d*x)),2)
-    t2 = (d*np.exp(-(c+d*x)) - d*np.exp(c+d*x))
+    #t1 = b*d/np.power((2+ np.exp(-(c+d*x)) + np.exp(c+d*x)),2)
+    #t2 = (d*np.exp(-(c+d*x)) - d*np.exp(c+d*x))
+    t1 = b*d*d/np.power((1 + np.exp(-(c+d*x))), 3)
+    t2 = np.exp(-(c+d*x)) * (np.exp(-(c+d*x)) - 1)
     return t1*t2
 # Fit the curve for the data
 def getFitCurve(x1,y):
-  return optimize.curve_fit(func,x1,y)
+  return optimize.curve_fit(func,x1,y, p0=[0.5, 0.5, 0.5])
 
-def genFitData(filename, normalized=False):
-    x,x1,y,y_org = getData(filename, normalized)
+def genFitData2(filename, mesh_term, normalized=False):
+  pmid_per_year = pd.read_csv("PMID_PER_YEAR.tsv", sep="\t", index_col="year", dtype = {'Year':int, 'TotalPMID':float})
+  pmid_per_year_norm = pmid_per_year / pmid_per_year.TotalPMID.mean()
+  df = getData(filename, mesh_term)
+  df = df.set_index("x")
+  print df
+
+
+  year_min, year_max = df.index.min() - 5, df.index.max() - 1
+  year_range = np.arange(year_min, year_max)
+  df_y = pd.DataFrame(data=np.zeros_like(year_range), index=year_range, dtype=float)
+  
+  normalizer = pmid_per_year_norm.ix[df.index, "TotalPMID"]
+  df_counts = np.log((df[df.index.isin(year_range)]["y"] / normalizer) + 1) # LOG shoud be base exp as per formula
+  df_y["x"] = year_range - year_min
+  df_y["y"] = df_counts
+  df_y["counts"] = df[df.index.isin(year_range)]["y"]
+  df_y = df_y.fillna(0)
+  x, y = df_y["x"], df_y["y"]
+  # We now have x and y and we need to fit the curve.
+  try:
+    popt,pcov = getFitCurve(x,y)
+  except RuntimeError:
+    popt, pcov = (0.0,0.0,0.0), 0.
+  # After fitting the curve we only need values for the original years
+  print popt,pcov
+  pd.options.display.width=200
+  df["x_fit"] = df.index - year_min
+  df["y_norm"] = np.log((df["y"] / normalizer) + 1) # LOG shoud be base exp as per formula
+  df["pred"] = func(df["x_fit"], popt[0],popt[1],popt[2])
+  df["pred_actual"] = (np.power(10, df["pred"]) - 1) * normalizer
+  df["velocity"] = f_der1(df["x_fit"], popt)
+  df["acceleration"] = f_der2(df["x_fit"], popt)
+  
+  #x_org = df_y.ix[valid_years, "x"].values
+  #predicted_val = func(x_org, popt[0],popt[1],popt[2])
+  #velocity = f_der1(x_org, popt)
+  #acceleration = f_der2(x_org, popt)
+  #df_y.ix[valid_years, "predicted"] = predicted_val
+  #df_y.ix[valid_years, "velocity"] = velocity
+  #df_y.ix[valid_years, "acceleration"] = acceleration
+  #df_y.ix[valid_years, "predicted_actual"] = (np.power(10, df_y.ix[valid_years, "predicted"]) - 1) * normalizer
+  #predicted_actual = df_y.ix[valid_years, "predicted_actual"].values
+  print df
+
+
+
+
+def genFitData(filename, mesh_term, normalized=False, offset=2):
+    df = getData(filename, mesh_term)
+    x,x1,y,y_org = prepareData(df, normalized, offset)
     #print x,x1,y,y_org 
     #Interpolate using spline
     s = interpolate.PchipInterpolator(x,y)
@@ -141,22 +217,31 @@ def genFitData(filename, normalized=False):
     
     #Fit curve to logistic regression and get coefficients
     popt,pcov = getFitCurve(x1,y)
-    print popt, pcov
+    print "POPT, PCOV: ", popt, pcov
     #print "Coefficients: %s" % popt
-    x2 = np.arange(min(x1),max(x1)+1, 0.2)
+    #x2 = np.arange(min(x1)-5,max(x1)+1, 0.01)
+    x2 = np.arange(min(x1) -offset, max(x1)+1, 0.01)
     #y2 = [func(i,popt[0],popt[1],popt[2],popt[3]) for i in x2]
     y2 = [func(i,popt[0],popt[1],popt[2]) for i in x2]
     y3 = [f_der1(i,popt) for i in x2]
     y4 = [f_der2(i,popt) for i in x2]
     x2 = [min(x)+k for k in x2]
+    print pd.DataFrame({"x1": x1, "y_org": y_org, "y": y})
+    print pd.DataFrame({"Year": x2, "Predicted": y2, "Velocity": y3, "Acc": y4})
     return x,y,x2,r,y2,y3,y4,y_org
 
 
-def main(filename, normalized=False, saveFigure=False):
-    x,y,x2,r,y2,y3,y4,y_org = genFitData(filename, normalized=normalized)
-    dir_name = os.path.dirname(filename)
-    base_name = os.path.basename(filename)
-    filename = os.path.join(dir_name, base_name.split('.')[0])
+def main(filename, mesh_term=None, normalized=False, saveFigure=False, debug=False, offset=2):
+    if debug:
+      genFitData2(filename, mesh_term, normalized=normalized)
+      return
+    x,y,x2,r,y2,y3,y4,y_org = genFitData(filename, mesh_term, normalized=normalized, offset=offset)
+    if saveFigure:
+      dir_name = os.path.dirname(filename)
+      base_name = os.path.basename(filename)
+      filename = os.path.join(dir_name, base_name.split('.')[0])
+    else:
+      filename = "None.pdf"
     plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure = saveFigure, filename = filename)
 
 
@@ -178,14 +263,19 @@ if __name__ == "__main__":
     parser.add_argument("-f",help="Name of file to get data from. Should\
                         contain\
                         2 columns only seperated by tab. Year and Count")
+    parser.add_argument("-m", type=str, help="Full name of MeSH term overrides filename")
     parser.add_argument("-n", type=bool, help="Normalize counts. Set to activate")
     parser.add_argument("-s", type=bool, help="Save figure and not show. Set to activate")
     parser.add_argument("-t", type=bool, help="Running from terminal. Set to activate")
+    parser.add_argument("--offset", type=int, help="Offset from beginning", default=2)
+    parser.add_argument("-d", type=bool, help="Debug", default=False)
     args = parser.parse_args()
     filename = args.f
+    mesh_term = args.m
     normalized = args.n
     saveFigure  = args.s
-    print "Normalized:", normalized
+    debug = args.d
+    offset = args.offset 
     if filename is None:
         print parser.print_help()
         exit(-1)
@@ -198,5 +288,10 @@ if __name__ == "__main__":
         matplotlib.use('Agg')
         saveFigure = True
 
-    main(filename, normalized, saveFigure)
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set_context("poster")
+    sns.set_style("ticks")
+    print "Filename: %s, MeSHTerm: %s, Normalized: %s, saveFigure: %s, debug: %s" % (filename, mesh_term, normalized, saveFigure, debug)
+    main(filename, mesh_term, normalized, saveFigure, debug, offset)
 

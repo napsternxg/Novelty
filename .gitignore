@@ -1,5 +1,7 @@
 *.txt
 *.tsv
+*.bin
+*.csv
 part-*
 _*
 *.log
@@ -9,3 +11,14 @@ tmp/**
 *.pyc
 *.pyo
 data/**
+
+*.pdf
+*.jpg
+*.emf
+*.eps
+*.svg
+*.png
+.ipynb_checkpoints/
+
+**/settings.json
+metastore_db/*

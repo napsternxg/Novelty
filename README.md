@@ -1,7 +1,7 @@
 # Total PMIDs per year
 
 ```sql
-mysql -u sofia -p PUBMED2015 -h sofus -e "SELECT year, COUNT(PMID) as TotalPMID FROM Articles GROUP BY year ORDER BY year;" > out/PMID_PER_YEAR.tsv
+mysql -u sofia -p PUBMED2015 -h sofus -e "SELECT year, COUNT(PMID) as TotalPMID FROM Articles WHERE mesh IS NOT NULL AND mesh != '-' GROUP BY year ORDER BY year;" > out/PMID_PER_YEAR.tsv
 ```
 
 To run the code using spark do the following:

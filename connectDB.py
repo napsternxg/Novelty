@@ -9,7 +9,7 @@ def getDBConnectorString(id=None):
     mysql_settings = SETTINGS["MYSQL_SETTINGS2"]
   elif id == 2:
     mysql_settings = SETTINGS["MYSQL_SETTINGS3"]
-  return "mysql+mysqldb://%s:%s@%s/%s" % (mysql_settings["USER"], mysql_settings["PASSWORD"],\
+  return "mysql+pymysql://%s:%s@%s/%s" % (mysql_settings["USER"], mysql_settings["PASSWORD"],\
                               mysql_settings["HOST"], mysql_settings["DB_NAME"])
 
 #print getDBConnectorString()
