@@ -1,142 +1,13 @@
-#!/usr/bin/env python
-
-import os
-
 import numpy as np
 from scipy import interpolate, optimize
 import pandas as pd
 
 import connectDB as cdb
 
-"""
-Year wise cumulative count of
-pubmed ids
-"""
-
-def normalizeAndLogCount(k):
-    global tyd
-    #print "Initial k: ", k
-    delta  = tyd.TotalPMID.mean()
-    normalizeF =  1.0*(tyd[tyd.year == k["x"]].TotalPMID.values[0])
-    k["y"] = (k["y"]*delta)/normalizeF
-    k["y"] = np.log(k["y"]+1)
-    #print "Final k: ", k
-    return k
-
-def prepareData(df,normalized, offset=2):
-    global tyd
-    df[["x","y"]] =df[["x","y"]].astype(float)
-    df["y_org"] = df["y"]
-    if normalized:
-        #print "Using Normalized routine"
-        tyd = pd.read_csv("PMID_PER_YEAR.tsv", sep="\t")
-        #tyd = tyd[(tyd.year > 1901) & (tyd.year <= 2011)] 
-        df = df.apply(normalizeAndLogCount, axis=1)
-        df[["x"]] = df[["x"]].astype(int)
-    else:
-        df.y = df.y.apply(lambda y: np.log(y+1))
-
-    #print df
-
-    #min_year = df.x.min() - 5
-    #max_year = df.x.max() -1
-    min_year = df.x.min() - offset
-    max_year = min(df.x.max() + 1, 2015)
-    x_t = range(min_year,max_year)
-    x = [] # Added to not set unobserved years to 0
-    #x1 = range(0,max_year-min_year)
-    x1 = []
-    y = []
-    y_org = []
-    for i in x_t:
-        if i not in df.x.values:
-            if i >= df.x.min():
-              continue
-            y.append(0)
-            y_org.append(0)
-            x.append(i)
-            x1.append(i-min_year)
-            continue
-        else:
-            x.append(i)
-            x1.append(i-min_year)
-            y.append(df[df.x == i].y.values[0])
-            y_org.append(df[df.x == i].y_org.values[0])
-
-    #y = [0 if i not in df.x else df[df.x == i].y for i in x]
-    #print df.y
-    print x,x1,y
-    return x,x1,y, y_org
-
-def getData(filename=None, mesh_term=None, normalized=True):
-    if filename is None and mesh_term is None:
-      raise Exception, "Provide atleast filename or MeSH term"
-    global tyd
-    column_names = ["x","y"]
-    print "MeSHterm = %s" % mesh_term
-    if mesh_term is not None:
-      print "Fetching data form MeSH Term = %s from DB" % mesh_term
-      query = "SELECT Year,AbsVal FROM mesh_scores WHERE MeshTerm = :mterm"
-      r = cdb.session.execute(query, {"mterm": mesh_term})
-      df = pd.DataFrame(r.fetchall())
-      print df
-    elif filename is not None:
-      # Important step. TotalPMID should be of type float or else there will be error in normalized calculations
-      df = pd.read_csv(filename,sep="\t", dtype = {'Year':int, 'TotalPMID':float})
-    df.columns = column_names
-    #return prepareData(df, normalized)
-    return df
-
-
-def plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure=False, filename="None", ax = None, color="k",marker='o', linestyle='-',label='',alpha=1.0,normalized=True,**kwargs):
-    #print x,y,x2,r,y2,y3,y4
-    title  = "Curve fitting for MeshTerm"
-    ax_defined = True
-    if normalized:
-        title += " [Normalized]"
-        filename += "_Normalized"
-    if ax is None:
-      ax_defined = False
-      fig, ax = plt.subplots(4,1, sharex=True)
-      fig.set_size_inches(15,12)
-      title = label
-      label = 'Data'
-    ax[0].plot(x,y_org,marker=marker,markersize=7,linestyle='None',\
-        color=color, alpha=alpha,label=label,**kwargs)
-    tyd_t = tyd.set_index("year")
-    ax[0].plot(x,tyd_t.ix[x, "TotalPMID"].values,marker=">",markersize=7,linestyle=linestyle,\
-        color="k", alpha=alpha,label="overall",**kwargs)
-    #ax[0].plot(x,r,"-")
-    ax[0].set_yscale('log')
-    ax[0].set_ylabel("Original Counts")
-
-    ax[1].plot(x,y,marker=marker,markersize=7,linestyle='None',\
-        color=color,alpha=alpha,label=label,**kwargs)
-    ax[1].plot(x2,y2,linestyle=linestyle,color=color,\
-        alpha=alpha,label="Fit "+label, **kwargs)
-    ax[1].set_ylabel("Log Normalized Counts")
-
-    ax[2].plot(x2,y3,linestyle=linestyle,color=color,alpha=alpha,label=label,**kwargs)
-    ax[2].set_ylabel("Growth")
-
-    ax[3].plot(x2,y4,linestyle=linestyle,color=color,alpha=alpha,label=label, **kwargs)
-    ax[3].set_ylabel("Acceleration")
-    ax[3].set_xlabel("Year")
-    df_t  = pd.DataFrame({"year": x2, "pred_val": y2, "Growth": y3, "Acceleration": y4})
-    print df_t.describe()
-    if saveFigure and (not ax_defined):
-        ax[0].legend(loc="lower right")
-        ax[1].legend(loc="lower right")
-        ax[0].set_title(title)
-        plt.savefig(filename+ ".pdf", bbox_inches = "tight")
-        #plt.savefig(filename+ ".png", bbox_inches = "tight")
-        #plt.savefig(filename+ ".eps", bbox_inches = "tight")
-        print "Figure saved as: %s" % filename
-    elif not ax_defined:
-        plt.show()
-
 # Fit function
-def func(x, b, q, p): 
+#def func(x, b, c, d): 
+def func(x, b, q, p):
+  #return (b/(1.0+np.exp(-(c+d*x))))
   return (b/(1.0+np.exp(-(x-q)/p)))
 
 # First derivative
@@ -144,7 +15,10 @@ def f_der1(x, popt):
   b,q,p = popt[:]
   c = -q/p
   d = 1./p
+  #e = 2+ np.exp(-(c+d*x)) + np.exp(c+d*x)
+  #e = np.exp(-(c + d*x)) / np.power((1 + np.exp(-(c+d*x))), 2)
   e = np.exp(-(x-q)/p) / np.power((1 + np.exp(-(x-q)/p)), 2)
+  #return b*d/e
   return b*e/p
 
 # Second derivative
@@ -152,147 +26,258 @@ def f_der2(x, popt):
   b,q,p = popt[:]
   c = -q/p
   d = 1./p
+  #t1 = b*d/np.power((2+ np.exp(-(c+d*x)) + np.exp(c+d*x)),2)
+  #t2 = (d*np.exp(-(c+d*x)) - d*np.exp(c+d*x))
+  #t1 = b*d*d/np.power((1 + np.exp(-(c+d*x))), 3)
+  #t2 = np.exp(-(c+d*x)) * (np.exp(-(c+d*x)) - 1)
   t1 = (b/p**2)/np.power((1 + np.exp(-(x-q)/p)), 3)
   t2 = np.exp(-(x-q)/p) * (np.exp(-(x-q)/p) - 1)
   return t1*t2
 
 # Fit the curve for the data
 def getFitCurve(x1,y):
+  #return optimize.curve_fit(func,x1,y, p0=[0.5,-2,0.1])
   return optimize.curve_fit(func,x1,y, p0=[1,-1,1])
-
-def genFitData2(filename, mesh_term, normalized=False):
-  pmid_per_year = pd.read_csv("PMID_PER_YEAR.tsv", sep="\t", index_col="year", dtype = {'Year':int, 'TotalPMID':float})
-  pmid_per_year_norm = pmid_per_year / pmid_per_year.TotalPMID.mean()
-  df = getData(filename, mesh_term)
-  df = df.set_index("x")
-  print df
+  #return optimize.curve_fit(func,x1,y)
 
 
-  year_min, year_max = df.index.min() - 5, df.index.max() - 1
-  year_range = np.arange(year_min, year_max)
-  df_y = pd.DataFrame(data=np.zeros_like(year_range), index=year_range, dtype=float)
+pmid_per_year = pd.read_csv("PMID_PER_YEAR.tsv", sep="\t", index_col="year", dtype = {'Year':int, 'TotalPMID':float})
+pmid_per_year_norm = pmid_per_year / pmid_per_year.TotalPMID.mean()
+
+
+def getData(mesh_term=None, normalized=True):
+  mesh_data = None
+  if mesh_term is not None:
+    query = "SELECT Year,AbsVal FROM mesh_scores WHERE MeshTerm = :mterm"
+    r = cdb.session.execute(query, {"mterm": mesh_term})
+    mesh_data = r.fetchall()
+  return mesh_data
+
+# CALCULATE MODEL AND EMPIRICAL SCORES FOR INDIVIDUAL MESH TERMS, ONLY EXPLODED COUNTS
+def mesh_scores(x):
+  year, counts = zip(*sorted(x, key=lambda k: k[0]))
+  # Calculate Empirical scores
   
-  normalizer = pmid_per_year_norm.ix[df.index, "TotalPMID"]
-  df_counts = np.log((df[df.index.isin(year_range)]["y"] / normalizer) + 1) # LOG shoud be base exp as per formula
-  df_y["x"] = year_range - year_min
-  df_y["y"] = df_counts
-  df_y["counts"] = df[df.index.isin(year_range)]["y"]
-  df_y = df_y.fillna(0)
-  x, y = df_y["x"], df_y["y"]
-  # We now have x and y and we need to fit the curve.
-  try:
-    popt,pcov = getFitCurve(x,y)
-  except RuntimeError:
-    popt, pcov = (0.0,0.0,0.0), 0.
+  #df = pd.DataFrame(data=list(counts), index=list(year), dtype=float)
+  #df.columns = ["y"]
+  # Collect all year and counts from spelling errors
+  df = pd.DataFrame({"x": list(year), "y": list(counts)})
+  df = df.groupby("x").sum()
+  year, counts = df.index.values, df["y"].values
+
+  # Start processing
+  df["y"] = df["y"].astype("float")
+  TFirstP = df.index - df.index.min()
+  VolFirstP = df["y"].values.cumsum()
+  # Calculate model scores
+  #year_min, year_max = df.index.min() - 5, df.index.max() + 1
+  popt, pcov = None, None
+  for offset in [0,2,5,10]:
+      #print offset
+      #year_min, year_max = df.index.min()-offset, min(df.index.max() + 1, 2015)
+      modified_min_year = max(df.index.min(), 1966)
+      year_min, year_max = modified_min_year-offset, min(df.index.max() + 1, 2015)
+      #if df.index.min() < 1966:
+      # Don't fit curve for any MeSH term which was started before 1966
+      #  break
+      #print offset
+      #year_range = np.arange(year_min, year_max)
+      year_range = range(year_min, modified_min_year) + df.index[(df.index <= year_max) & (df.index>=modified_min_year)].values.tolist()
+      #year_min, year_max = df.index.min()-offset, min(df.index.max() + 1, 2015)
+      #year_range = np.arange(year_min, year_max)
+      df_y = pd.DataFrame(data=np.zeros_like(year_range), index=year_range, dtype=float)
+      normalizer = pmid_per_year_norm.ix[df.index, "TotalPMID"]
+      df_counts = np.log((df[df.index.isin(year_range)]["y"] / normalizer) + 1) # LOG shoud be base exp as per formula
+      df_y["x"] = np.array(year_range) - year_min
+      df_y["y"] = df_counts
+      df_y["counts"] = df[df.index.isin(year_range)]["y"]
+      df_y = df_y.fillna(0)
+      x, y = df_y["x"], df_y["y"]
+      # We now have x and y and we need to fit the curve.
+      if df.shape[0] < 2:
+          # Too few instances to fit
+          break
+      if len(year_range) < 3:
+          continue
+      try:
+          popt,pcov = getFitCurve(x,y)
+          #print popt
+          if popt[0]*popt[2] > 0:
+              break
+      except RuntimeError:
+          popt, pcov = None, None
   # After fitting the curve we only need values for the original years
-  print popt,pcov
-  pd.options.display.width=200
+  #x_org = df_y.ix[df.index, "x"].values
+  #predicted_val = fc.func(x_org, popt[0],popt[1],popt[2])
+  #velocity = fc.f_der1(x_org, popt)
   df["x_fit"] = df.index - year_min
+  x_inflex = None
   df["y_norm"] = np.log((df["y"] / normalizer) + 1) # LOG shoud be base exp as per formula
-  df["pred"] = func(df["x_fit"], popt[0],popt[1],popt[2])
-  df["pred_actual"] = (np.power(10, df["pred"]) - 1) * normalizer
-  df["velocity"] = f_der1(df["x_fit"], popt)
-  df["acceleration"] = f_der2(df["x_fit"], popt)
+  if popt is not None and popt[0]*popt[2] > 0:
+      #x_inflex = -popt[1]/popt[2]
+      x_inflex = int(popt[1] + year_min + 1)
+      df["pred"] = func(df["x_fit"], popt[0],popt[1],popt[2])
+      df["pred_actual"] = (np.exp(df["pred"]) - 1) * normalizer
+      df["velocity"] = f_der1(df["x_fit"], popt)
+      df["acceleration"] = f_der2(df["x_fit"], popt)
+  else:
+      df["pred"] = np.nan
+      df["pred_actual"] = np.nan
+      df["velocity"] = np.nan
+      df["acceleration"] = np.nan
+  df = df.fillna("\\N")
+  return popt, offset, x_inflex, ((year[i], counts[i], TFirstP[i], VolFirstP[i], df["y_norm"].values[i], df["pred"].values[i],\
+      df["pred_actual"].values[i], df["velocity"].values[i], df["acceleration"].values[i]) for i in xrange(len(year)))
+
+
+def get_plots(gen_x):
+  colors = {
+      'Black': '#000000',
+      'Red':   '#FF0000',
+      'Green': '#00FF00',
+      'Blue':  '#0000FF',
+  }
+  year, counts, y_norm, pred, pred_actual, velocity, acceleration = zip(
+      *((k[:2] + k[4:]) for k in gen_x))
+
+  plot_size = 800
+  plot_height = 400
+  TOOLS = 'box_zoom,box_select,crosshair,resize,reset,hover,save'
+  colors_i = [colors["Blue"], colors["Black"]]
+  count_fig = figure(x_axis_label = "Year", y_axis_label = "# Articles per year",\
+      plot_width=plot_size, plot_height=plot_height, y_axis_type="log", tools=TOOLS)
+  count_fig.line(year, pred_actual, color=colors_i[0], line_width=2, legend="predicted")
+  count_fig.scatter(year, counts, color=colors_i[0], line_width=2, legend="actual")
+  count_fig.legend.orientation = "top_left"
   
-  #x_org = df_y.ix[valid_years, "x"].values
-  #predicted_val = func(x_org, popt[0],popt[1],popt[2])
-  #velocity = f_der1(x_org, popt)
-  #acceleration = f_der2(x_org, popt)
-  #df_y.ix[valid_years, "predicted"] = predicted_val
-  #df_y.ix[valid_years, "velocity"] = velocity
-  #df_y.ix[valid_years, "acceleration"] = acceleration
-  #df_y.ix[valid_years, "predicted_actual"] = (np.power(10, df_y.ix[valid_years, "predicted"]) - 1) * normalizer
-  #predicted_actual = df_y.ix[valid_years, "predicted_actual"].values
+  norm_fig = figure(x_axis_label = "Year", y_axis_label = "Normed count",\
+      plot_width=plot_size, plot_height=plot_height, tools=TOOLS)
+  norm_fig.line(year, pred, color=colors_i[0], line_width=2, legend="predicted")
+  norm_fig.line(year, np.convolve(y_norm, np.ones(5)/5., "same"), color=colors_i[1], line_width=2, legend="Mov. Avg.")
+  norm_fig.scatter(year, y_norm, color=colors_i[0], line_width=2, legend="actual")
+  norm_fig.set(y_range=Range1d(0, max(y_norm)))
+  norm_fig.legend.orientation = "top_left"
+
+  velocity_fig = figure(x_axis_label = "Year", y_axis_label = "Velocity",\
+      plot_width=plot_size, plot_height=plot_height, tools=TOOLS)
+  velocity_fig.line(year, velocity, color=colors_i[0], line_width=2)
+
+  acc_fig = figure(x_axis_label = "Year", y_axis_label = "Acceleration",\
+      plot_width=plot_size, plot_height=plot_height, tools=TOOLS)
+  acc_fig.line(year, acceleration, color=colors_i[0], line_width=2)
+  
+  fig = vplot(count_fig, norm_fig, velocity_fig, acc_fig)
+  df = pd.DataFrame({"year": year, "counts": counts, "y_norm": y_norm, "pred": pred,
+    "pred_actual": pred_actual, "velocity": velocity, "acceleration": acceleration})
+  return fig, df
+
+def plot_to_file(gen_x, x_inflex):
+  colors = {
+      'Black': '#000000',
+      'Red':   '#FF0000',
+      'Green': '#00FF00',
+      'Blue':  '#0000FF',
+  }
+  year, counts, y_norm, pred, pred_actual, velocity, acceleration = zip(
+      *((k[:2] + k[4:]) for k in gen_x))
+  x = np.array(year)
+  plot_size = 800
+  plot_height = 400
+  colors_i = [colors["Black"], colors["Blue"]]
+  fig, ax = plt.subplots(4,1, sharex="col", figsize=(8,8))
+
+  ## Count plot
+  ax[0].plot(year, pred_actual, color=colors_i[0], label="predicted")
+  ax[0].plot(year, counts, color=colors_i[0], marker="o", linestyle="None", label="actual")
+  ax[0].axvline(x=x_inflex,linestyle=":", color="red")
+  ax[0].axvspan(x[(x <= x_inflex) & (np.array(velocity) > 0.1)].min(), x_inflex, facecolor="red", alpha=0.2, label="Acc. growth")
+  ax[0].axvspan(x_inflex, x[(x >= x_inflex) & (np.array(velocity) > 0.1)].max(), facecolor="blue", alpha=0.2, label="Dec. growth")
+  ax[0].set_yscale("log")
+  ax[0].set_ylabel("# Articles per year")
+  ax[0].legend(loc="lower right", ncol=2,frameon=True, fancybox=True)
+
+  ## Normed fig
+  ax[1].plot(year, pred, color=colors_i[0], label="predicted")
+  ax[1].plot(year, y_norm, color=colors_i[0], marker="o", linestyle="None", label="actual")
+  ax[1].axvline(x=x_inflex,linestyle=":", color="red")
+  ax[1].axvspan(x[(x <= x_inflex) & (np.array(velocity) > 0.1)].min(), x_inflex, facecolor="red", alpha=0.2, label="Acc. growth")
+  ax[1].axvspan(x_inflex, x[(x >= x_inflex) & (np.array(velocity) > 0.1)].max(), facecolor="blue", alpha=0.2, label="Dec. growth")
+  ax[1].set_ylim([0, max(y_norm)])
+  ax[1].set_ylabel("Normed count")
+  ax[1].legend(loc="lower right", ncol=2,frameon=True, fancybox=True)
+  ## Velocity fig
+  ax[2].plot(year, velocity, color=colors_i[0])
+  ax[2].axvline(x=x_inflex,linestyle=":", color="red")
+  ax[2].set_ylabel("Velocity")
+  ## Acceleration fig
+  ax[3].plot(year, acceleration, color=colors_i[0])
+  ax[3].axvline(x=x_inflex,linestyle=":", color="red")
+  ax[3].set_xlabel("Year")
+  ax[3].set_ylabel("Acceleration")
+  sns.despine(trim=True, offset=2)
+  fig.tight_layout()
+  df = pd.DataFrame({"year": year, "counts": counts, "y_norm": y_norm, "pred": pred,
+    "pred_actual": pred_actual, "velocity": velocity, "acceleration": acceleration})
+  return fig, df
+
+
+def main(filename="Mesh_plot.pdf", mesh_term="Neoplasms", normalized=True, saveFigure=True, debug=False, offset=0):
+  mesh_data = getData(mesh_term = mesh_term)
+  popt, offset, x_inflex, gen_x = mesh_scores(mesh_data)
+  fig, df = plot_to_file(gen_x, x_inflex)
+  plt.savefig(filename, bbox_inches="tight")
   print df
 
-
-
-
-def genFitData(filename, mesh_term, normalized=False, offset=2):
-    df = getData(filename, mesh_term)
-    x,x1,y,y_org = prepareData(df, normalized, offset)
-    #print x,x1,y,y_org 
-    #Interpolate using spline
-    s = interpolate.PchipInterpolator(x,y)
-    r = s(x)
-    
-    #Fit curve to logistic regression and get coefficients
-    popt,pcov = getFitCurve(x1,y)
-    print "POPT, PCOV: ", popt, pcov
-    #print "Coefficients: %s" % popt
-    #x2 = np.arange(min(x1)-5,max(x1)+1, 0.01)
-    x2 = np.arange(min(x1) -offset, max(x1)+1, 0.01)
-    #y2 = [func(i,popt[0],popt[1],popt[2],popt[3]) for i in x2]
-    y2 = [func(i,popt[0],popt[1],popt[2]) for i in x2]
-    y3 = [f_der1(i,popt) for i in x2]
-    y4 = [f_der2(i,popt) for i in x2]
-    x2 = [min(x)+k for k in x2]
-    print pd.DataFrame({"x1": x1, "y_org": y_org, "y": y})
-    print pd.DataFrame({"Year": x2, "Predicted": y2, "Velocity": y3, "Acc": y4})
-    return x,y,x2,r,y2,y3,y4,y_org
-
-
-def main(filename, mesh_term=None, normalized=False, saveFigure=False, debug=False, offset=2):
-    if debug:
-      genFitData2(filename, mesh_term, normalized=normalized)
-      return
-    x,y,x2,r,y2,y3,y4,y_org = genFitData(filename, mesh_term, normalized=normalized, offset=offset)
-    if saveFigure:
-      dir_name = os.path.dirname(filename)
-      base_name = os.path.basename(filename)
-      filename = os.path.join(dir_name, base_name.split('.')[0])
-    else:
-      filename = "None.pdf"
-    plot(x,y,x2,r,y2,y3,y4,y_org, saveFigure = saveFigure, filename = filename)
-
-
-
-
-
-"""
-yp = []
-for i in range(3,8):
-    z = np.polyfit(x1,y,i)
-    f = np.poly1d(z)
-    pl.plot(x,f(x1),"-",linewidth=2,label="{0}-D Poly Fit curve".format(i))
-"""
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Create Plots for Mesh Term\
-                                     Data")
-    parser.add_argument("-f",help="Name of file to get data from. Should\
-                        contain\
-                        2 columns only seperated by tab. Year and Count")
-    parser.add_argument("-m", type=str, help="Full name of MeSH term overrides filename")
-    parser.add_argument("-n", type=bool, help="Normalize counts. Set to activate")
-    parser.add_argument("-s", type=bool, help="Save figure and not show. Set to activate")
-    parser.add_argument("-t", type=bool, help="Running from terminal. Set to activate")
-    parser.add_argument("--offset", type=int, help="Offset from beginning", default=2)
-    parser.add_argument("-d", type=bool, help="Debug", default=False)
-    args = parser.parse_args()
-    filename = args.f
-    mesh_term = args.m
-    normalized = args.n
-    saveFigure  = args.s
-    debug = args.d
-    offset = args.offset 
-    if filename is None:
-        print parser.print_help()
-        exit(-1)
-    if normalized is None:
-        normalized == False
-    if saveFigure is None:
-        saveFigure == False
-    if args.t is not None:
-        import matplotlib
-        matplotlib.use('Agg')
-        saveFigure = True
+  import argparse
+  parser = argparse.ArgumentParser(description="Create Plots for Mesh Term\
+                                   Data")
+  parser.add_argument("-f",help="Name of file to get data from. Should\
+                      contain\
+                      2 columns only seperated by tab. Year and Count")
+  parser.add_argument("-m", type=str, help="Full name of MeSH term overrides filename")
+  parser.add_argument("-n", type=bool, help="Normalize counts. Set to activate")
+  parser.add_argument("-s", type=bool, help="Save figure and not show. Set to activate")
+  parser.add_argument("-t", type=bool, help="Running from terminal. Set to activate")
+  parser.add_argument("--offset", type=int, help="Offset from beginning", default=2)
+  parser.add_argument("-d", type=bool, help="Debug", default=False)
+  args = parser.parse_args()
+  filename = args.f
+  mesh_term = args.m
+  normalized = args.n
+  saveFigure  = args.s
+  debug = args.d
+  offset = args.offset 
+  if filename is None:
+      print parser.print_help()
+      exit(-1)
+  if normalized is None:
+      normalized == False
+  if saveFigure is None:
+      saveFigure == False
+  if args.t is not None:
+      import matplotlib
+      matplotlib.use('Agg')
+      saveFigure = True
 
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    sns.set_context("poster")
-    sns.set_style("ticks")
-    print "Filename: %s, MeSHTerm: %s, Normalized: %s, saveFigure: %s, debug: %s" % (filename, mesh_term, normalized, saveFigure, debug)
-    main(filename, mesh_term, normalized, saveFigure, debug, offset)
+  import matplotlib.pyplot as plt 
+  import seaborn as sns 
+  sns.set_style('ticks')
+  sns.set_context('paper')
+
+  matplotlib.rcParams['font.size'] = 10
+  matplotlib.rcParams['axes.labelsize'] = 10
+  matplotlib.rcParams['xtick.labelsize'] = 10
+  matplotlib.rcParams['ytick.labelsize'] = 10
+  matplotlib.rcParams['axes.titlesize'] = 10
+  matplotlib.rcParams['font.family'] = 'serif'
+  matplotlib.rcParams['savefig.dpi'] = 600
+  matplotlib.rcParams['lines.markersize'] = 3
+  matplotlib.rcParams['lines.linewidth'] = 1
+
+  pd.options.display.width = 200
+
+  print "Filename: %s, MeSHTerm: %s, Normalized: %s, saveFigure: %s, debug: %s" % (filename, mesh_term, normalized, saveFigure, debug)
+  main(filename, mesh_term, normalized, saveFigure, debug, offset)
 

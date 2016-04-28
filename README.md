@@ -16,3 +16,25 @@ db/load_data.sh <FOLDER_NAME> <tbl_name>
 # Example
 db/load_data.sh out/pmid_novelty_all_scores_mesh_c novelty_scores
 ```
+
+## Author Data
+
+```sql
+mysql -u sofia -p PUBMED2010 -h sofus -e "SELECT au_id, au_ids FROM au_clst_all" > data/Authors.txt
+```
+
+## Citation Data
+
+```sql
+mysql -u sofia -p citation -h sofus -e "SELECT * FROM cite_list" > data/Citelist.txt
+```
+
+```sql
+mysql -u sofia -p citation -h sofus -e "SELECT b.PMID, b.year, b.journal, a.Ncitedby FROM cite_list as a JOIN PUBMED2015.Articles as b ON a.PMID = b.PMID" > data/pmid_yr_journal_ncitedby.txt
+```
+
+## Data for Bruce
+
+```sql
+mysql -u sofia -p novelty -h sofus -e "SELECT PMID, Year, TFirstP as TimeNovelty, VolFirstP as VolumeNovelty, Pair_TFirstP as PairTimeNovelty, Pair_VolFirstP as PairVolumeNovelty FROM novelty_scores" > out/PubMed2015_NoveltyData.txt
+```
