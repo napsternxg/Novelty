@@ -38,3 +38,21 @@ mysql -u sofia -p citation -h sofus -e "SELECT b.PMID, b.year, b.journal, a.Ncit
 ```sql
 mysql -u sofia -p novelty -h sofus -e "SELECT PMID, Year, TFirstP as TimeNovelty, VolFirstP as VolumeNovelty, Pair_TFirstP as PairTimeNovelty, Pair_VolFirstP as PairVolumeNovelty FROM novelty_scores" > out/PubMed2015_NoveltyData.txt
 ```
+
+
+
+
+
+## What MeSH terms didn't fit
+
+316 didn't fit
+
+```
+SELECT a.* FROM (SELECT MeshTerm, MIN(Year) as m_y, SUM(AbsVal) as s_av, COUNT(Year) as c_y FROM mesh_scores WHERE Velocity IS NULL GROUP BY MeshTerm) as a ORDER BY s_av DESC LIMIT 500;
+```
+
+Only 3 had more than 5K terms and were introduced after 1965
+
+```
+SELECT a.* FROM (SELECT MeshTerm, MIN(Year) as m_y, SUM(AbsVal) as s_av, COUNT(Year) as c_y FROM mesh_scores WHERE Velocity IS NULL GROUP BY MeshTerm) as a WHERE a.m_y >= 1965 ORDER BY s_av DESC LIMIT 500;
+```

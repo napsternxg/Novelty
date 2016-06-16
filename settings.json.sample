@@ -1,0 +1,16 @@
+{
+  "MYSQL_SETTINGS": {
+    "DB_NAME": "<db_name>", 
+    "HOST": "<host>", 
+    "PASSWORD": "<password>",
+    "USER": "<user>"
+  }, 
+  "MYSQL_SETTINGS2": {
+    "DB_NAME": "<db_name>", 
+    "HOST": "<host>", 
+    "PASSWORD": "<password>", 
+    "USER": "<user>"
+  } 
+}
+
+
