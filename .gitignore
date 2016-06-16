@@ -22,4 +22,5 @@ data/**
 .ipynb_checkpoints/
 
 **/settings.json
+settings.json
 metastore_db/*
