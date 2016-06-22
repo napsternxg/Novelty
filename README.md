@@ -1,3 +1,6 @@
+[![DOI](https://zenodo.org/badge/20815/napsternxg/Novelty.svg)](https://zenodo.org/badge/latestdoi/20815/napsternxg/Novelty)
+[![GitHub license](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://raw.githubusercontent.com/napsternxg/Novelty/master/LICENSE)
+
 # Novelty
 
 Conceptual novelty of MEDLINE articles based on MeSH terms. 
