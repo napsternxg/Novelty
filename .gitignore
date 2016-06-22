@@ -24,3 +24,5 @@ data/**
 **/settings.json
 settings.json
 metastore_db/*
+
+InternalWorkLog.md

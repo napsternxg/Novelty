@@ -1,58 +1,14 @@
-# Total PMIDs per year
+# Novelty
 
-```sql
-mysql -u sofia -p PUBMED2015 -h sofus -e "SELECT year, COUNT(PMID) as TotalPMID FROM Articles WHERE mesh IS NOT NULL AND mesh != '-' GROUP BY year ORDER BY year;" > out/PMID_PER_YEAR.tsv
+Conceptual novelty of MEDLINE articles based on MeSH terms. 
+
+More details available at GIMLI interface: http://abel.lis.illinois.edu/gimli/
+
+## Citation
+```
+ Mishra, Shubhanshu; Torvik, Vetle I.; Quantifying conceptual novelty in the biomedical literature, in the 5th International workshop on mining scientific publications (WOSP) at JCDL, 2016; Newark, NJ, USA.
 ```
 
-To run the code using spark do the following:
- * Delete all folders in the `out/` directory
- * Open spark enabled ipython shell
- * Run the code using `%run -i mesh_per_year_ex.py`
-
-
-# Load data into DB
-```
-db/load_data.sh <FOLDER_NAME> <tbl_name>
-# Example
-db/load_data.sh out/pmid_novelty_all_scores_mesh_c novelty_scores
-```
-
-## Author Data
-
-```sql
-mysql -u sofia -p PUBMED2010 -h sofus -e "SELECT au_id, au_ids FROM au_clst_all" > data/Authors.txt
-```
-
-## Citation Data
-
-```sql
-mysql -u sofia -p citation -h sofus -e "SELECT * FROM cite_list" > data/Citelist.txt
-```
-
-```sql
-mysql -u sofia -p citation -h sofus -e "SELECT b.PMID, b.year, b.journal, a.Ncitedby FROM cite_list as a JOIN PUBMED2015.Articles as b ON a.PMID = b.PMID" > data/pmid_yr_journal_ncitedby.txt
-```
-
-## Data for Bruce
-
-```sql
-mysql -u sofia -p novelty -h sofus -e "SELECT PMID, Year, TFirstP as TimeNovelty, VolFirstP as VolumeNovelty, Pair_TFirstP as PairTimeNovelty, Pair_VolFirstP as PairVolumeNovelty FROM novelty_scores" > out/PubMed2015_NoveltyData.txt
-```
-
-
-
-
-
-## What MeSH terms didn't fit
-
-316 didn't fit
-
-```
-SELECT a.* FROM (SELECT MeshTerm, MIN(Year) as m_y, SUM(AbsVal) as s_av, COUNT(Year) as c_y FROM mesh_scores WHERE Velocity IS NULL GROUP BY MeshTerm) as a ORDER BY s_av DESC LIMIT 500;
-```
-
-Only 3 had more than 5K terms and were introduced after 1965
-
-```
-SELECT a.* FROM (SELECT MeshTerm, MIN(Year) as m_y, SUM(AbsVal) as s_av, COUNT(Year) as c_y FROM mesh_scores WHERE Velocity IS NULL GROUP BY MeshTerm) as a WHERE a.m_y >= 1965 ORDER BY s_av DESC LIMIT 500;
-```
+## Authors
+* Shubhanshu Mishra
+* Vetle I. Torvik (advisor)
