@@ -224,6 +224,9 @@ def plot_to_file(gen_x, x_inflex):
 def main(filename="Mesh_plot.pdf", mesh_term="Neoplasms", normalized=True, saveFigure=True, debug=False, offset=0):
   mesh_data = getData(mesh_term = mesh_term)
   popt, offset, x_inflex, gen_x = mesh_scores(mesh_data)
+  if debug:
+    print mesh_data
+    print popt, offset, x_inflex, gen_x
   fig, df = plot_to_file(gen_x, x_inflex)
   plt.savefig(filename, bbox_inches="tight")
   print df
