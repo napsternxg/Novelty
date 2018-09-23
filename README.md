@@ -10,7 +10,7 @@ Data available at: https://doi.org/10.13012/B2IDB-5060298_V1
 
 ## Citation
 
-Please cite the following resources:
+If you are using results from this paper, please cite the following resources:
 ```
 @inproceedings{mishra2016quantifying,
   title={Quantifying conceptual novelty in the biomedical literature},
@@ -19,7 +19,8 @@ Please cite the following resources:
   volume={22},
   number={9-10},
   year={2016},
-  organization={NIH Public Access}
+  organization={NIH Public Access},
+  doi={10.1045/september2016-mishra}
 }
 @data{mishra2018noveltydata,
 doi = {10.13012/B2IDB-5060298_V1},
@@ -31,7 +32,7 @@ year = {2018}
 }
 ```
 
-* Mishra, Shubhanshu, and Vetle I. Torvik. "Quantifying conceptual novelty in the biomedical literature." In D-Lib magazine: the magazine of the Digital Library Forum, vol. 22, no. 9-10. NIH Public Access, 2016.
+* Mishra, Shubhanshu, and Vetle I. Torvik. "Quantifying conceptual novelty in the biomedical literature." In D-Lib magazine: the magazine of the Digital Library Forum, vol. 22, no. 9-10. NIH Public Access, 2016. https://doi.org/10.1045/september2016-mishra
 * Mishra, Shubhanshu; Torvik, Vetle I. (2018): Conceptual novelty scores for PubMed articles. University of Illinois at Urbana-Champaign. https://doi.org/10.13012/B2IDB-5060298_V1
 
 
