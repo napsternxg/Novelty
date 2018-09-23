@@ -6,10 +6,35 @@
 Conceptual novelty of MEDLINE articles based on MeSH terms. 
 
 More details available at GIMLI interface: http://abel.lis.illinois.edu/gimli/
+Data available at: https://doi.org/10.13012/B2IDB-5060298_V1
 
 ## Citation
- Mishra, Shubhanshu; Torvik, Vetle I.; Quantifying conceptual novelty in the biomedical literature, in the 5th International workshop on mining scientific publications (WOSP) at JCDL, 2016; Newark, NJ, USA.
+
+Please cite the following resources:
+```
+@inproceedings{mishra2016quantifying,
+  title={Quantifying conceptual novelty in the biomedical literature},
+  author={Mishra, Shubhanshu and Torvik, Vetle I},
+  booktitle={D-Lib magazine: the magazine of the Digital Library Forum},
+  volume={22},
+  number={9-10},
+  year={2016},
+  organization={NIH Public Access}
+}
+@data{mishra2018noveltydata,
+doi = {10.13012/B2IDB-5060298_V1},
+url = {https://doi.org/10.13012/B2IDB-5060298_V1},
+author = {Mishra, Shubhanshu; Torvik, Vetle I.},
+publisher = {University of Illinois at Urbana-Champaign},
+title = {Conceptual novelty scores for PubMed articles ﻿},
+year = {2018}
+}
+```
+
+* Mishra, Shubhanshu, and Vetle I. Torvik. "Quantifying conceptual novelty in the biomedical literature." In D-Lib magazine: the magazine of the Digital Library Forum, vol. 22, no. 9-10. NIH Public Access, 2016.
+* Mishra, Shubhanshu; Torvik, Vetle I. (2018): Conceptual novelty scores for PubMed articles. University of Illinois at Urbana-Champaign. https://doi.org/10.13012/B2IDB-5060298_V1
+
 
 ## Authors
 * Shubhanshu Mishra
-* Vetle I. Torvik (advisor)
+* Vetle I. Torvik
