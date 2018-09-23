@@ -3,9 +3,10 @@
 
 # Novelty
 
-Conceptual novelty of MEDLINE articles based on MeSH terms. 
+[Conceptual novelty of MEDLINE articles based on MeSH terms.](https://doi.org/10.1045/september2016-mishra)
 
 * More details available at GIMLI interface: http://abel.lis.illinois.edu/gimli/
+* Paper: https://doi.org/10.1045/september2016-mishra
 * Data available at: https://doi.org/10.13012/B2IDB-5060298_V1
 
 ## Citation
