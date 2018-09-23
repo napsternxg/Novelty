@@ -5,8 +5,8 @@
 
 Conceptual novelty of MEDLINE articles based on MeSH terms. 
 
-More details available at GIMLI interface: http://abel.lis.illinois.edu/gimli/
-Data available at: https://doi.org/10.13012/B2IDB-5060298_V1
+* More details available at GIMLI interface: http://abel.lis.illinois.edu/gimli/
+* Data available at: https://doi.org/10.13012/B2IDB-5060298_V1
 
 ## Citation
 
